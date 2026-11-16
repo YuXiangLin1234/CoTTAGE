@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="CoTTAGE: An Explainable Judge for Text-to-Audio Generation">
+  <meta name="description" content="CoTTAGE is a reasoning-based judge for text-to-audio generation that predicts text relevance (REL) and overall audio quality (OVL) after generating an audio-grounded rationale. Trained with SFT on distilled reasoning traces and refined with a Thurstone-based pairwise preference reward, it achieves state-of-the-art correlation with human judgments on six benchmarks.">
+  <meta name="keywords" content="text-to-audio, TTA evaluation, audio quality assessment, MOS prediction, audio language model, LALM judge, explainable evaluation, reinforcement learning, GRPO, Thurstone model">
+  <meta name="author" content="Yu-Xiang Lin, Yun-Man Hsu, Bo-Ru Lu, Kuan-Po Huang, Wenze Ren, Ming-To Chuang, Chun-Yi Kuan, Jiawei Du, Byeonggeun Kim, Qingming Tang, Chieh-Chi Kao, Ankur Gandhe, Chao Wang, Hung-yi Lee">
+  <meta name="robots" content="index, follow">
+  <meta name="language" content="English">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="National Taiwan University &amp; Amazon">
+  <meta property="og:title" content="CoTTAGE: An Explainable Judge for Text-to-Audio Generation">
+  <meta property="og:description" content="A reasoning-based TTA judge that explains its scores. State-of-the-art correlation with human ratings on REL and OVL across six benchmarks, plus 10K+ new human OVL annotations.">
+  <meta property="og:url" content="https://yuxianglin1234.github.io/CoTTAGE/">
+  <meta property="og:image" content="https://yuxianglin1234.github.io/CoTTAGE/static/images/overview.jpg">
+  <meta property="og:image:width" content="1056">
+  <meta property="og:image:height" content="566">
+  <meta property="og:image:alt" content="The two-stage training pipeline of CoTTAGE: supervised fine-tuning on distilled reasoning traces, then Thurstone-based pairwise preference optimization">
+
+  <!-- Academic/Research Specific -->
+  <meta name="citation_title" content="CoTTAGE: An Explainable Judge for Text-to-Audio Generation">
+  <meta name="citation_author" content="Yu-Xiang Lin">
+  <meta name="citation_author" content="Yun-Man Hsu">
+  <meta name="citation_author" content="Bo-Ru Lu">
+  <meta name="citation_author" content="Kuan-Po Huang">
+  <meta name="citation_author" content="Wenze Ren">
+  <meta name="citation_author" content="Ming-To Chuang">
+  <meta name="citation_author" content="Chun-Yi Kuan">
+  <meta name="citation_author" content="Jiawei Du">
+  <meta name="citation_author" content="Byeonggeun Kim">
+  <meta name="citation_author" content="Qingming Tang">
+  <meta name="citation_author" content="Chieh-Chi Kao">
+  <meta name="citation_author" content="Ankur Gandhe">
+  <meta name="citation_author" content="Chao Wang">
+  <meta name="citation_author" content="Hung-yi Lee">
+  <meta name="citation_publication_date" content="2026">
+
+  <!-- Additional SEO -->
+  <meta name="theme-color" content="#2563eb">
+  <meta name="msapplication-TileColor" content="#2563eb">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://ajax.googleapis.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
+  <title>CoTTAGE: An Explainable Judge for Text-to-Audio Generation</title>
+
+  <!-- Favicon and App Icons -->
+  <link rel="icon" type="image/x-icon" href="static/images/NTU.ico">
+  <link rel="apple-touch-icon" href="static/images/NTU.ico">
+
+  <!-- Critical CSS - Load synchronously -->
+  <link rel="stylesheet" href="static/css/bulma.min.css">
+  <link rel="stylesheet" href="static/css/index.css">
+
+  <!-- Non-critical CSS - Load asynchronously -->
+  <link rel="preload" href="static/css/bulma-carousel.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="static/css/bulma-slider.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="static/css/fontawesome.all.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+  <link rel="preload" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css" as="style" onload="this.onload=null;this.rel='stylesheet'">
+
+  <!-- Fallback for browsers that don't support preload -->
+  <noscript>
+    <link rel="stylesheet" href="static/css/bulma-carousel.min.css">
+    <link rel="stylesheet" href="static/css/bulma-slider.min.css">
+    <link rel="stylesheet" href="static/css/fontawesome.all.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jpswalsh/academicons@1/css/academicons.min.css">
+  </noscript>
+
+  <!-- Fonts - Optimized loading -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Defer non-critical JavaScript -->
+  <script defer src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <script defer src="static/js/fontawesome.all.min.js"></script>
+  <script defer src="static/js/bulma-carousel.min.js"></script>
+  <script defer src="static/js/bulma-slider.min.js"></script>
+  <script defer src="static/js/index.js"></script>
+  <script>
+  window.MathJax = {
+    tex: {
+      inlineMath: [['\\(', '\\)'], ['$', '$']],
+      displayMath: [['$$', '$$'], ['\\[', '\\]']],
+      processEscapes: true
+    }
+  };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Structured Data for Academic Papers -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ScholarlyArticle",
+    "headline": "CoTTAGE: An Explainable Judge for Text-to-Audio Generation",
+    "description": "A reasoning-based evaluator for text-to-audio generation that produces an audio-grounded rationale before predicting text relevance (REL) and overall audio quality (OVL).",
+    "author": [
+      { "@type": "Person", "name": "Yu-Xiang Lin",       "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Yun-Man Hsu",        "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Bo-Ru Lu",           "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Kuan-Po Huang",      "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Wenze Ren",          "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Ming-To Chuang", "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Chun-Yi Kuan",       "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Jiawei Du",          "affiliation": { "@type": "Organization", "name": "National Taiwan University" } },
+      { "@type": "Person", "name": "Byeonggeun Kim",     "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Qingming Tang",      "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Chieh-Chi Kao",      "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Ankur Gandhe",       "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Chao Wang",          "affiliation": { "@type": "Organization", "name": "Amazon AGI" } },
+      { "@type": "Person", "name": "Hung-yi Lee",        "affiliation": { "@type": "Organization", "name": "National Taiwan University" } }
+    ],
+    "keywords": ["text-to-audio", "evaluation", "audio quality assessment", "audio language model", "explainable evaluation"],
+    "isAccessibleForFree": true
+  }
+  </script>
+
+  <!-- ======================================================= -->
+  <!-- Page-local styles (CoTTAGE)                             -->
+  <!-- ======================================================= -->
+  <style>
+    /* ---------- qualitative example cards ---------- */
+    .ct-example {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: var(--border-radius-lg);
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      margin-bottom: 2rem;
+      text-align: left;
+    }
+    .ct-example-head {
+      padding: 0.9rem 1.15rem;
+      background: var(--background-secondary);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem;
+    }
+    .ct-tag {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: rgba(37, 99, 235, 0.10);
+      color: var(--primary-color);
+      border: 1px solid rgba(37, 99, 235, 0.25);
+      white-space: nowrap;
+    }
+    .ct-tag.is-ovl {
+      background: rgba(14, 165, 233, 0.10);
+      color: #0369a1;
+      border-color: rgba(14, 165, 233, 0.28);
+    }
+    .ct-inst {
+      flex: 1 1 240px;
+      font-style: italic;
+      color: var(--text-primary);
+      font-size: 0.98rem;
+    }
+    .ct-mos {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 0.35rem;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: var(--text-primary);
+      color: #fff;
+      white-space: nowrap;
+    }
+    .ct-example-audio {
+      padding: 0.9rem 1.15rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .ct-example-audio audio { width: 100%; }
+
+    .ct-rationales { display: flex; flex-wrap: wrap; }
+    .ct-rationale {
+      flex: 1 1 320px;
+      padding: 1rem 1.15rem 1.25rem;
+      min-width: 0;
+    }
+    .ct-rationale + .ct-rationale { border-left: 1px solid var(--border-color); }
+    @media screen and (max-width: 768px) {
+      .ct-rationale + .ct-rationale {
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+      }
+    }
+    .ct-rationale-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-bottom: 0.6rem;
+    }
+    .ct-model {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+    .ct-pred {
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .ct-pred.is-bad  { background: rgba(239, 68, 68, 0.12); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .ct-pred.is-good { background: rgba(34, 197, 94, 0.14); color: #15803d; border: 1px solid rgba(34, 197, 94, 0.35); }
+    .ct-rationale p {
+      font-size: 0.92rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+      margin-bottom: 0.7rem;
+    }
+    .claim-ok  { background: rgba(34, 197, 94, 0.16); color: #14532d; border-radius: 3px; padding: 0 2px; }
+    .claim-bad { background: rgba(239, 68, 68, 0.14); color: #7f1d1d; border-radius: 3px; padding: 0 2px; }
+
+    /* ---------- leaderboard (MMAU-style) ---------- */
+    .lb-labels {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: center;
+      margin: 1.25rem 0 0.25rem;
+    }
+    .lb-label {
+      padding: 0.25rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    tr.lb-embed td,   .lb-label.lb-embed   { background: rgb(240, 229, 245); }
+    tr.lb-regress td, .lb-label.lb-regress { background: rgba(218, 191, 135, 0.30); }
+    tr.lb-prop td,    .lb-label.lb-prop    { background: rgba(211, 211, 211, 0.35); }
+    tr.lb-open td,    .lb-label.lb-open    { background: rgba(118, 185, 0, 0.17); }
+    tr.lb-best td { font-weight: 700; color: var(--text-primary); }
+    .ct-table th.lb-avgcol, .ct-table td.lb-avgcol { border-left: 2px solid var(--border-color); }
+
+    /* ---------- results tables ---------- */
+    .ct-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: #fff;
+    }
+    .ct-table th, .ct-table td {
+      padding: 0.5rem 0.7rem;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .ct-table thead th {
+      color: var(--text-primary);
+      font-weight: 700;
+      border-bottom: 2px solid var(--text-primary);
+    }
+    .ct-table thead tr:first-child th { border-bottom: 1px solid var(--border-color); }
+    .ct-table td:first-child, .ct-table th:first-child { text-align: left; }
+    .ct-table tbody tr:hover { background: var(--background-secondary); }
+    .ct-table tbody tr:last-child td { border-bottom: 2px solid var(--text-primary); }
+  </style>
+</head>
+<body>
+
+  <!-- Scroll to Top Button -->
+  <button class="scroll-to-top" onclick="scrollToTop()" title="Scroll to top" aria-label="Scroll to top">
+    <i class="fas fa-chevron-up"></i>
+  </button>
+
+  <main id="main-content">
+
+  <!-- ========================= -->
+  <!-- Hero                      -->
+  <!-- ========================= -->
+  <section class="hero">
+    <div class="hero-body">
+      <div class="container is-max-desktop">
+        <div class="columns is-centered">
+          <div class="column has-text-centered">
+            <h1 class="title is-1 publication-title">CoTTAGE: An Explainable Judge for Text-to-Audio Generation</h1>
+
+            <div class="is-size-5 publication-authors">
+              <span class="author-block">Yu-Xiang Lin<sup>1</sup>,</span>
+              <span class="author-block">Yun-Man Hsu<sup>1</sup>,</span>
+              <span class="author-block">Bo-Ru Lu<sup>2</sup>,</span>
+              <span class="author-block">Kuan-Po Huang<sup>1</sup>,</span>
+              <span class="author-block">Wenze Ren<sup>1</sup>,</span>
+              <span class="author-block">Ming-To Chuang<sup>1</sup>,</span>
+              <span class="author-block">Chun-Yi Kuan<sup>1</sup>,</span>
+              <span class="author-block">Jiawei Du<sup>1</sup>,</span>
+              <span class="author-block">Byeonggeun Kim<sup>2</sup>,</span>
+              <span class="author-block">Qingming Tang<sup>2</sup>,</span>
+              <span class="author-block">Chieh-Chi Kao<sup>2</sup>,</span>
+              <span class="author-block">Ankur Gandhe<sup>2</sup>,</span>
+              <span class="author-block">Chao Wang<sup>2</sup>,</span>
+              <span class="author-block">Hung-yi Lee<sup>1,3</sup>
+              </span>
+            </div>
+
+            <div class="is-size-6 publication-authors mt-2">
+              <span class="author-block"><sup>1</sup>National Taiwan University</span>
+              &nbsp;&nbsp;
+              <span class="author-block"><sup>2</sup>Amazon AGI</span>
+              &nbsp;&nbsp;
+              <span class="author-block"><sup>3</sup>NTU AI-CoRE</span>
+            </div>
+
+            <div class="is-size-5 publication-authors mt-2">
+              <span class="author-block"><b>Under Review</b></span>
+            </div>
+
+            <div class="column has-text-centered">
+              <div class="publication-links">
+                <!-- TODO: drop the camera-ready PDF at static/pdfs/cottage.pdf and un-comment
+                <span class="link-block">
+                  <a href="static/pdfs/cottage.pdf" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon"><i class="fas fa-file-pdf"></i></span>
+                    <span>Paper</span>
+                  </a>
+                </span>
+                -->
+
+                <span class="link-block">
+                  <a href="https://github.com/YuXiangLin1234/CoTTAGE" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon"><i class="fab fa-github"></i></span>
+                    <span>Code</span>
+                  </a>
+                </span>
+
+                <!-- TODO: Update with your arXiv paper ID -->
+                <span class="link-block">
+                  <a href="https://arxiv.org/abs/2611.17644" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon"><i class="ai ai-arxiv"></i></span>
+                    <span>arXiv</span>
+                  </a>
+                </span>
+
+                <!-- TODO: Replace with the Hugging Face repo hosting the model + OVL annotations -->
+                <span class="link-block">
+                  <a href="https://huggingface.co/AutoAudioReasoningMOS/CoTTAGE" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon"><i class="fas fa-database"></i></span>
+                    <span>Model</span>
+                  </a>
+                </span>
+
+
+                <span class="link-block">
+                  <a href="https://huggingface.co/AutoAudioReasoningMOS" target="_blank"
+                     class="external-link button is-normal is-rounded is-dark">
+                    <span class="icon"><i class="fas fa-database"></i></span>
+                    <span>Dataset</span>
+                  </a>
+                </span>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= -->
+  <!-- Abstract                  -->
+  <!-- ========================= -->
+  <section class="section hero is-light">
+    <div class="container is-max-desktop">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-four-fifths">
+          <h2 class="title is-3">Abstract</h2>
+
+          <div class="content has-text-justified">
+            <p>
+              Rapid progress in text-to-audio (TTA) generation demands reliable and explainable automatic evaluation.
+              However, existing metrics fail to simultaneously deliver high correlation with human judgments and meaningful,
+              audio-grounded explanations, forcing reliance on labor-intensive human evaluation that bottlenecks model
+              development iteration. To address this, we propose <b>CoTTAGE</b>, a reasoning-based evaluator for
+              <b>text relevance (REL)</b> and <b>audio quality (OVL)</b>. Following a reason-then-predict paradigm,
+              CoTTAGE first generates an audio-grounded rationale to diagnose errors before predicting scores.
+              Supported by over <b>10K newly collected human OVL annotations</b>, CoTTAGE is first trained via supervised
+              fine-tuning and then refined with reinforcement learning using a <b>Thurstone-based preference objective</b>
+              that converts sampled score distributions into pairwise preference probabilities and rewards agreement with
+              rankings derived from human judgments. Across six benchmarks spanning REL and OVL, CoTTAGE achieves
+              state-of-the-art correlation with human judgments while producing human-preferred explanations to accelerate
+              TTA development.
+            </p>
+          </div>
+
+          <!-- Teaser example -->
+          <div class="ct-example" style="margin-top: 1rem;">
+            <div class="ct-example-head">
+              <span class="ct-tag">REL &middot; Temporal</span>
+              <span class="ct-inst">&ldquo;A loud motor begins to pick up speed then cuts out and slowly stops.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>2.10</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/rel_temporal.wav" type="audio/wav">
+                Your browser does not support the audio element.
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni-7B</span>
+                  <span class="ct-pred is-bad">predicted 4.50</span>
+                </div>
+                <p>
+                  The audio describes <span class="claim-bad">a motor that starts loudly, then slows down and eventually
+                  stops.</span> The text also describes a motor that begins to pick up speed, then cuts out and slowly stops.
+                  <span class="claim-bad">The key elements of the motor's behavior (starting loudly, slowing down, and
+                  stopping) are consistent between the audio and the text.</span>
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">predicted 1.80</span>
+                </div>
+                <p>
+                  Listening to the audio, there is <span class="claim-ok">a continuous, loud humming or buzzing sound that
+                  resembles a motor or drone.</span> However, the audio remains <span class="claim-ok">at a constant, steady
+                  pitch and intensity from the beginning to the end.</span> It completely lacks the dynamic changes requested
+                  in the prompt: <span class="claim-ok">there is no sense of the motor &ldquo;picking up speed,&rdquo; nor is
+                  there a sudden &ldquo;cutting out&rdquo; or stopping sound.</span> Therefore, the alignment between the text
+                  and the audio is very poor.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+  <!-- End abstract -->
+
+  <!-- ========================= -->
+  <!-- OVL vs. existing metrics  -->
+  <!-- ========================= -->
+  <section class="section">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-full-width">
+          <h2 class="title is-3">Our Audio OVL Annotations</h2>
+
+          <p class="has-text-grey has-text-left">
+            RELATE and XACLE provide training-scale human annotations for text relevance, but public human labels for
+            <i>overall quality</i> on synthesized audio are limited to small, evaluation-oriented test sets. We therefore
+            collect OVL ratings for <strong>10,362 training clips</strong> (2,862 from RELATE and 7,500 from XACLE) via Amazon
+            Mechanical Turk, with five independent ratings per clip.
+          </p>
+          <br/>
+          <p class="has-text-grey has-text-left">
+            We compare the mean human OVL
+            rating against human REL annotations and the four aesthetic dimensions predicted by Audiobox-Aesthetics
+            (PQ, PC, CE, CU). REL correlates only weakly with OVL &mdash; a clip that faithfully matches its prompt is not
+            necessarily perceived as high quality, and vice versa. Production Complexity is essentially uncorrelated, and
+            Production Quality, despite being nominally the closest concept, reaches only a moderate correlation.
+            <strong>No existing signal correlates with human OVL beyond LCC = 0.34.</strong>
+            These results indicate that REL annotations and existing aesthetic predictors are not sufficient for OVL evaluation. Our annotations provide dedicated OVL supervision for training an OVL judge.
+          </p>
+
+          <div class="content has-text-centered mt-5">
+            <figure class="image" style="max-width: 900px; margin: 0 auto;">
+              <img src="static/images/ovl_signal_correlation.png"
+                   alt="Pearson and Spearman correlations between human OVL ratings and REL / Audiobox-Aesthetics dimensions">
+            </figure>
+            <p class="is-size-7 has-text-grey mt-2">
+              Pearson (LCC) and Spearman (SRCC) correlations between human OVL ratings and existing evaluation dimensions,
+              including REL and the four Audiobox-Aesthetics dimensions. Error bars indicate bootstrap 95% confidence intervals.
+            </p>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= -->
+  <!-- Method                    -->
+  <!-- ========================= -->
+  <section class="section">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-full-width">
+          <h2 class="title is-3">Method</h2>
+
+          <p class="has-text-grey has-text-left">
+            CoTTAGE is trained in two stages. Supervised fine-tuning establishes the reason-then-predict behaviour from
+            rationales that are anchored to human MOS. Reinforcement learning then adds comparative supervision: instead of a
+            single pointwise target per sample, each sample is scored against the other samples in the batch through an
+            uncertainty-aware Thurstone preference model.
+          </p>
+
+          <div class="content has-text-centered mt-5">
+            <figure class="image">
+              <img src="static/images/overview.jpg" alt="The overall training pipeline of CoTTAGE">
+            </figure>
+            <p class="is-size-7 has-text-grey mt-2">
+              The overall training pipeline of CoTTAGE.
+            </p>
+          </div>
+
+          <br/>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= -->
+  <!-- Main Results              -->
+  <!-- ========================= -->
+  <section class="section">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-full-width" style="min-width: 0;">
+          <h2 class="title is-3">Main Results</h2>
+
+          <p class="has-text-grey has-text-left">
+            We report Pearson (LCC) and Spearman (SRCC) correlations with human ratings on the official RELATE and XACLE test sets (in-domain) and on PAM-Audio and Clotho (out-of-domain, with different annotator pools and collection protocols). CoTTAGE obtains the highest LCC and SRCC on all benchmarks for both dimensions. Comparing with the supervised-only variant (<i>w/o</i> RL), the results also show consistent gains from the RL stages.
+          </p>
+
+          <div class="lb-labels">
+            <span class="lb-label lb-embed">Embedding-based</span>
+            <span class="lb-label lb-regress">Regression-based</span>
+            <span class="lb-label lb-prop">Proprietary LALM</span>
+            <span class="lb-label lb-open">Open-Source LALM</span>
+          </div>
+
+          <h3 class="title is-4 has-text-left mt-5">Text relevance (REL) leaderboard</h3>
+          <div class="table-container">
+            <table class="ct-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="vertical-align: bottom;">Model</th>
+                  <th rowspan="2" style="vertical-align: bottom;">Reasoning</th>
+                  <th colspan="2">XACLE</th>
+                  <th colspan="2">RELATE</th>
+                  <th colspan="2">PAM-Audio</th>
+                  <th colspan="2">Clotho</th>
+                  <th colspan="2" class="lb-avgcol">Avg</th>
+                </tr>
+                <tr>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th class="lb-avgcol">LCC &uarr;</th><th>SRCC &uarr;</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lb-open lb-best"><td>CoTTAGE (ours) 🥇</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.685</td><td>0.652</td><td>0.594</td><td>0.591</td><td>0.657</td><td>0.663</td><td>0.607</td><td>0.602</td><td class="lb-avgcol">0.636</td><td>0.627</td></tr>
+                <tr class="lb-open"><td>CoTTAGE <i>w/o</i> RL (SFT only) 🥈</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.601</td><td>0.572</td><td>0.519</td><td>0.516</td><td>0.606</td><td>0.590</td><td>0.536</td><td>0.531</td><td class="lb-avgcol">0.566</td><td>0.552</td></tr>
+                <tr class="lb-prop"><td>Gemini-3.1 Pro 🥉</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.551</td><td>0.489</td><td>0.471</td><td>0.423</td><td>0.473</td><td>0.442</td><td>0.548</td><td>0.528</td><td class="lb-avgcol">0.511</td><td>0.471</td></tr>
+                <tr class="lb-embed"><td>CLAPScore</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.472</td><td>0.398</td><td>0.437</td><td>0.411</td><td>0.493</td><td>0.488</td><td>0.396</td><td>0.378</td><td class="lb-avgcol">0.450</td><td>0.419</td></tr>
+                <tr class="lb-embed"><td>ELSA</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.398</td><td>0.371</td><td>0.375</td><td>0.377</td><td>0.497</td><td>0.467</td><td>0.416</td><td>0.404</td><td class="lb-avgcol">0.422</td><td>0.405</td></tr>
+                <tr class="lb-open"><td>Qwen3-Omni-30B</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.399</td><td>0.374</td><td>0.256</td><td>0.256</td><td>0.373</td><td>0.353</td><td>0.438</td><td>0.444</td><td class="lb-avgcol">0.367</td><td>0.357</td></tr>
+                <tr class="lb-open"><td>Audio Flamingo 3</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.344</td><td>0.300</td><td>0.215</td><td>0.193</td><td>0.297</td><td>0.230</td><td>0.376</td><td>0.339</td><td class="lb-avgcol">0.308</td><td>0.266</td></tr>
+                <tr class="lb-open"><td>Qwen2.5-Omni-7B</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.162</td><td>0.153</td><td>0.063</td><td>0.047</td><td>0.319</td><td>0.305</td><td>0.334</td><td>0.301</td><td class="lb-avgcol">0.220</td><td>0.202</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="is-size-7 has-text-grey has-text-left mt-2">
+            Rows are sorted by the average LCC across the benchmarks; Avg is the unweighted mean over the test sets
+            shown. 🥇🥈🥉 mark the top three.
+            <b>Reasoning</b>: whether the judge produces a natural-language rationale for its score
+            (<span class="icon has-text-success" style="vertical-align: -3px;"><i class="fas fa-check"></i></span>)
+            or only a scalar
+            (<span class="icon has-text-danger" style="vertical-align: -3px;"><i class="fas fa-times"></i></span>).
+          </p>
+
+          <h3 class="title is-4 has-text-left mt-6">Overall audio quality (OVL) leaderboard</h3>
+          <div class="table-container">
+            <table class="ct-table">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="vertical-align: bottom;">Model</th>
+                  <th rowspan="2" style="vertical-align: bottom;">Reasoning</th>
+                  <th colspan="2">PAM-Audio</th>
+                  <th colspan="2">Clotho</th>
+                  <th colspan="2" class="lb-avgcol">Avg</th>
+                </tr>
+                <tr>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th>LCC &uarr;</th><th>SRCC &uarr;</th>
+                  <th class="lb-avgcol">LCC &uarr;</th><th>SRCC &uarr;</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="lb-open lb-best"><td>CoTTAGE (ours) 🥇</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.611</td><td>0.614</td><td>0.559</td><td>0.558</td><td class="lb-avgcol">0.585</td><td>0.586</td></tr>
+                <tr class="lb-embed"><td>PAM 🥈</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.587</td><td>0.610</td><td>0.445</td><td>0.451</td><td class="lb-avgcol">0.516</td><td>0.531</td></tr>
+                <tr class="lb-open"><td>CoTTAGE <i>w/o</i> RL (SFT only) 🥉</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.529</td><td>0.525</td><td>0.481</td><td>0.470</td><td class="lb-avgcol">0.505</td><td>0.498</td></tr>
+                <tr class="lb-prop"><td>Gemini-3.1 Pro</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.404</td><td>0.473</td><td>0.512</td><td>0.502</td><td class="lb-avgcol">0.458</td><td>0.488</td></tr>
+                <tr class="lb-regress"><td>Aesthetics-CU</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.396</td><td>0.405</td><td>0.487</td><td>0.471</td><td class="lb-avgcol">0.442</td><td>0.438</td></tr>
+                <tr class="lb-regress"><td>Aesthetics-PQ</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.355</td><td>0.363</td><td>0.465</td><td>0.450</td><td class="lb-avgcol">0.410</td><td>0.407</td></tr>
+                <tr class="lb-regress"><td>Aesthetics-CE</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.464</td><td>0.502</td><td>0.317</td><td>0.340</td><td class="lb-avgcol">0.391</td><td>0.421</td></tr>
+                <tr class="lb-embed"><td>ELSA</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.387</td><td>0.363</td><td>0.305</td><td>0.283</td><td class="lb-avgcol">0.346</td><td>0.323</td></tr>
+                <tr class="lb-open"><td>Qwen3-Omni-30B</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.429</td><td>0.424</td><td>0.252</td><td>0.227</td><td class="lb-avgcol">0.341</td><td>0.326</td></tr>
+                <tr class="lb-embed"><td>CLAPScore</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.379</td><td>0.373</td><td>0.201</td><td>0.223</td><td class="lb-avgcol">0.290</td><td>0.298</td></tr>
+                <tr class="lb-open"><td>Audio Flamingo 3</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.326</td><td>0.332</td><td>0.218</td><td>0.225</td><td class="lb-avgcol">0.272</td><td>0.279</td></tr>
+                <tr class="lb-open"><td>Qwen2.5-Omni-7B</td><td><span class="icon has-text-success"><i class="fas fa-check"></i></span></td><td>0.221</td><td>0.206</td><td>0.271</td><td>0.329</td><td class="lb-avgcol">0.246</td><td>0.268</td></tr>
+                <tr class="lb-regress"><td>Aesthetics-PC</td><td><span class="icon has-text-danger"><i class="fas fa-times"></i></span></td><td>0.092</td><td>0.127</td><td>&minus;0.148</td><td>&minus;0.074</td><td class="lb-avgcol">&minus;0.028</td><td>0.027</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="is-size-7 has-text-grey has-text-left mt-2">
+            Rows are sorted by the average LCC across the benchmarks; Avg is the unweighted mean over the test sets
+            shown. 🥇🥈🥉 mark the top three.
+            <b>Reasoning</b>: whether the judge produces a natural-language rationale for its score
+            (<span class="icon has-text-success" style="vertical-align: -3px;"><i class="fas fa-check"></i></span>)
+            or only a scalar
+            (<span class="icon has-text-danger" style="vertical-align: -3px;"><i class="fas fa-times"></i></span>).
+          </p>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= -->
+  <!-- Qualitative results       -->
+  <!-- ========================= -->
+  <section class="section">
+    <div class="container is-max-widescreen">
+      <div class="columns is-centered has-text-centered">
+        <div class="column is-full-width" style="min-width: 0;">
+          <h2 class="title is-3">Qualitative Results</h2>
+
+          <p class="has-text-grey has-text-left">
+            <span class="claim-ok">Green</span> indicates claims supported by the audio, while
+            <span class="claim-bad">red</span> marks unsupported claims. Rationales are abbreviated.
+          </p>
+          <br/>
+
+          <h3 class="title is-4 has-text-left">Reasoning on REL</h3>
+
+          <!-- REL: Counting -->
+          <div class="ct-example">
+            <div class="ct-example-head">
+              <span class="ct-tag">REL &middot; Counting</span>
+              <span class="ct-inst">&ldquo;A bug chirps once and then starts chirping repetitively.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>2.00</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/rel_counting.wav" type="audio/wav">
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni</span>
+                  <span class="ct-pred is-bad">4.50</span>
+                </div>
+                <p>
+                  The audio <span class="claim-ok">contains a continuous sound of a bug chirping</span>, which aligns with the
+                  description of a bug chirping repetitively. <span class="claim-bad">The description does not mention the bug
+                  chirping once before starting to chirp repetitively</span>, but the continuous chirping is consistent with
+                  the description of repetitive chirping. <span class="claim-bad">Therefore, the audio aligns well with the
+                  text description.</span>
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">1.80</span>
+                </div>
+                <p>
+                  The text instruction specifies a bug chirping once initially, followed by repetitive chirping. The audio,
+                  however, <span class="claim-ok">consists of a continuous, repetitive bug chirping from the very beginning.
+                  It completely misses the initial &ldquo;chirp once&rdquo; action</span> and plays the repetitive sound
+                  throughout its duration. Because the temporal structure and the distinct events described in the prompt are
+                  absent, the audio fails to faithfully represent the instruction.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- REL: Multi-event -->
+          <div class="ct-example">
+            <div class="ct-example-head">
+              <span class="ct-tag">REL &middot; Multi-event</span>
+              <span class="ct-inst">&ldquo;Ducks quack with blowing wind and faint splashes.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>2.80</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/rel_multievent.wav" type="audio/wav">
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni</span>
+                  <span class="ct-pred is-bad">4.50</span>
+                </div>
+                <p>
+                  The audio contains <span class="claim-ok">the sound of ducks quacking</span>, which aligns with the text
+                  description. <span class="claim-bad">The presence of wind and faint splashes also suggests an outdoor
+                  setting</span>, which is consistent with the idea of ducks in a natural environment.
+                  <span class="claim-bad">The audio captures the essence of the described scene, making the semantic alignment
+                  quite strong.</span>
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">2.80</span>
+                </div>
+                <p>
+                  The text instruction specifies three distinct elements: ducks quacking, blowing wind, and faint splashes.
+                  Listening to the audio, <span class="claim-ok">the sound of ducks quacking is very prominent and clearly
+                  recognizable throughout the clip.</span> However, the other elements described in the prompt are noticeably
+                  absent. <span class="claim-ok">There is no audible sound of blowing wind, nor are there any faint splashes to
+                  be heard.</span> Because the audio captures the primary subject but completely misses the background
+                  environmental sounds, it only partially fulfills the text instruction.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="title is-4 has-text-left mt-6">Reasoning on OVL</h3>
+
+          <!-- OVL: Distortion -->
+          <div class="ct-example">
+            <div class="ct-example-head">
+              <span class="ct-tag is-ovl">OVL &middot; Distortion</span>
+              <span class="ct-inst">&ldquo;Rapid gunfire with male yelling.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>1.90</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/ovl_distortion.wav" type="audio/wav">
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni</span>
+                  <span class="ct-pred is-bad">4.50</span>
+                </div>
+                <p>
+                  The audio clip contains <span class="claim-ok">a series of gunshots followed by a man speaking.</span>
+                  <span class="claim-bad">The gunshots are clear and distinct, indicating a high-quality sound effect. The
+                  man's speech is also clear and understandable, suggesting good audio quality.</span>
+                  <span class="claim-bad">There is no background noise or unnatural sound patterns present.</span> The overall
+                  audio quality is consistent with a real-world recording.
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">2.00</span>
+                </div>
+                <p>
+                  The audio clip <span class="claim-ok">suffers from severe quality degradations throughout its duration.</span>
+                  The prominent sounds, which resemble <span class="claim-ok">loud bursts or synthetic impacts, are heavily
+                  distorted and clipped, resulting in a harsh, abrasive, and unnatural tone.</span> Additionally, there is a
+                  pervasive layer of background noise and static that further muddies the audio.
+                  <span class="claim-ok">The human voices heard towards the end are muffled, lack definition, and are difficult
+                  to discern clearly against the noisy background.</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- OVL: Artifacts -->
+          <div class="ct-example">
+            <div class="ct-example-head">
+              <span class="ct-tag is-ovl">OVL &middot; Artifacts</span>
+              <span class="ct-inst">&ldquo;A jackhammer drilling and vibrating continuously.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>2.60</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/ovl_artifacts.wav" type="audio/wav">
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni</span>
+                  <span class="ct-pred is-bad">5.00</span>
+                </div>
+                <p>
+                  The audio clip contains <span class="claim-bad">a sound that resembles a vehicle engine idling</span>, which
+                  is a common and recognizable sound in real-world recordings. The sound is <span class="claim-bad">clear and
+                  consistent, without any noticeable background noise or unnatural patterns.</span> The quality of the audio is
+                  high, as it accurately represents the sound of an engine idling.
+                  <span class="claim-bad">Therefore, the audio quality is excellent.</span>
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">2.60</span>
+                </div>
+                <p>
+                  The audio presents a continuous mechanical sound, resembling a small engine or motor running.
+                  <span class="claim-ok">The most prominent issue with this recording is the significant amount of background
+                  noise and static. A persistent hiss and low-frequency rumble are present throughout the entire clip, which
+                  masks the finer details of the mechanical sound.</span> Additionally, the audio feels somewhat
+                  <span class="claim-ok">muffled and lacks high-frequency clarity</span>, giving it a slightly distant or
+                  enclosed characteristic.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- OVL: High quality -->
+          <div class="ct-example">
+            <div class="ct-example-head">
+              <span class="ct-tag is-ovl">OVL &middot; High quality</span>
+              <span class="ct-inst">&ldquo;Baby crying then man speaking and humming.&rdquo;</span>
+              <span class="ct-mos">Human MOS <b>4.20</b></span>
+            </div>
+            <div class="ct-example-audio">
+              <audio controls preload="none">
+                <source src="static/audios/qualitative/ovl_highquality.wav" type="audio/wav">
+              </audio>
+            </div>
+            <div class="ct-rationales">
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">Qwen2.5-Omni</span>
+                  <span class="ct-pred is-bad">2.50</span>
+                </div>
+                <p>
+                  The audio clip contains <span class="claim-ok">a baby crying, which is a natural sound.</span> However,
+                  <span class="claim-bad">the quality of the audio seems to be low, with some background noise and possibly
+                  some unnatural sound patterns.</span> <span class="claim-bad">The audio does not sound like a high-quality
+                  real-world recording.</span>
+                </p>
+              </div>
+              <div class="ct-rationale">
+                <div class="ct-rationale-head">
+                  <span class="ct-model">CoTTAGE (ours)</span>
+                  <span class="ct-pred is-good">4.00</span>
+                </div>
+                <p>
+                  The audio presents a baby crying, which is the primary sound source.
+                  <span class="claim-ok">The crying itself is captured with good clarity and sounds very natural, without any
+                  noticeable distortion, clipping, or digital artifacts.</span> The vocalizations are distinct and easy to hear.
+                  However, <span class="claim-ok">there is a minor amount of background noise or room ambiance present
+                  throughout the recording.</span> While this background noise is not overly intrusive, it prevents the audio
+                  from sounding completely pristine or studio-quality.
+                </p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================= -->
+  <!-- Paper                     -->
+  <!-- ========================= -->
+  <!-- TODO: drop the PDF at static/pdfs/cottage.pdf and un-comment this section.
+  <section class="hero is-small is-light">
+    <div class="hero-body">
+      <div class="container">
+        <h2 class="title">Paper</h2>
+        <iframe src="static/pdfs/cottage.pdf" width="100%" height="550"></iframe>
+      </div>
+    </div>
+  </section>
+  -->
+
+  <!-- ========================= -->
+  <!-- BibTeX                    -->
+  <!-- ========================= -->
+  <section class="section" id="BibTeX">
+    <div class="container is-max-desktop content">
+      <div class="bibtex-header">
+        <h2 class="title">BibTeX</h2>
+        <button class="copy-bibtex-btn" onclick="copyBibTeX()" title="Copy BibTeX to clipboard">
+          <i class="fas fa-copy"></i>
+          <span class="copy-text">Copy</span>
+        </button>
+      </div>
+      <!-- TODO: update booktitle once the venue is decided -->
+      <pre id="bibtex-code"><code>@misc{lin2026cottage,
+      title={CoTTAGE: An Explainable Judge for Text-to-Audio Generation}, 
+      author={Yu-Xiang Lin and Yun-Man Hsu and Bo-Ru Lu and Kuan-Po Huang and Wenze Ren and Ming-To Chuang and Chun-Yi Kuan and Jiawei Du and Byeonggeun Kim and Qingming Tang and Chieh-Chi Kao and Ankur Gandhe and Chao Wang and Hung-yi Lee},
+      year={2026},
+      eprint={2611.17644},
+      archivePrefix={arXiv},
+      primaryClass={cs.SD},
+      url={https://arxiv.org/abs/2611.17644}, 
+}
+</code></pre>
+    </div>
+  </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <div class="columns is-centered">
+        <div class="column is-8">
+          <div class="content">
+            <p>
+              This page was built using the <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank">Academic Project Page Template</a> which was adopted from the <a href="https://nerfies.github.io" target="_blank">Nerfies</a> project page.
+              You are free to borrow the source code of this website, we just ask that you link back to this page in the footer. <br> This website is licensed under a <a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/" target="_blank">Creative
+              Commons Attribution-ShareAlike 4.0 International License</a>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
