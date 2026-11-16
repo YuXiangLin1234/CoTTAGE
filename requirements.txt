@@ -1,0 +1,10 @@
+ms-swift>=3.12
+vllm>=0.10.2
+transformers>=4.57
+datasets>=3.6
+qwen-omni-utils
+librosa
+soundfile
+scipy
+filelock
+tqdm
